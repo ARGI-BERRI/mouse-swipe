@@ -24,14 +24,14 @@ sudo apt install python3-systemd python3-evdev
 ```shell
 git clone https://github.com/tcorreabr/mouse-swipe.git
 cd mouse-swipe
-sudo ./install
+sudo ./install.sh
 ```
 
 To uninstall:
 
 ```shell
 #from mouse-swipe directory#
-sudo ./uninstall
+sudo ./uninstall.sh
 ```
 
 If you have edited the /etc/mouse-swipe.conf file, you might want to make a backup of it before uninstalling.
