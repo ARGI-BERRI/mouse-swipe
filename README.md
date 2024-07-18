@@ -11,6 +11,14 @@ The default configuration works fine on [Gnome](https://www.gnome.org/) desktop,
 - [python-systemd](https://github.com/systemd/python-systemd/)
 - [python-evdev](https://github.com/gvalkov/python-evdev)
 
+### Debian and Ubuntu
+
+```shell
+# For example, Ubuntu 24.04
+# This will install dependencies to the system-wide environment
+sudo apt install python3-systemd python3-evdev
+```
+
 ## Installation
 
 ```shell
@@ -27,7 +35,3 @@ sudo ./uninstall
 ```
 
 If you have edited the /etc/mouse-swipe.conf file, you might want to make a backup of it before uninstalling.
-
-
-
-
