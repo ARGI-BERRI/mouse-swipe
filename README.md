@@ -27,7 +27,7 @@ cd mouse-swipe
 sudo ./install.sh
 ```
 
-To uninstall:
+## Uninstallation:
 
 ```shell
 #from mouse-swipe directory#

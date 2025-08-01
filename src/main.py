@@ -44,22 +44,31 @@ def ungrab_mouses():
 
 def emulate_event(type, code, value):
     virtual_device.write(type, code, value)
+    if (code == ecodes.REL_WHEEL):
+        virtual_device.write(type, ecodes.REL_WHEEL_HI_RES, 120 if value > 0 else -120)
+    if (code == ecodes.REL_HWHEEL):
+        virtual_device.write(type, ecodes.REL_HWHEEL_HI_RES, 120 if value > 0 else -120)
     virtual_device.syn()
 
 def emulate_key_press(keys):
     for key in keys:
         virtual_device.write(ecodes.EV_KEY, ecodes.ecodes[key], 1)
-        virtual_device.syn()
+    virtual_device.syn()
 
     for key in reversed(keys):
         virtual_device.write(ecodes.EV_KEY, ecodes.ecodes[key], 0)
-        virtual_device.syn()
+    virtual_device.syn()
 
 async def task_handle_mouse_events(mouse):
     async for event in mouse.input_device.async_read_loop():
         should_forward = True
 
-        if event.type == ecodes.EV_REL:
+        # By default, REL_WHEEL and REL_WHEEL_HI_RES are sent together in one sync.
+        # Avoids emulating these two events separately causing duplicated (jumpy) scrolling.
+        # Emulate REL_WHEEL_HI_RES properly on emulate_event instead.
+        if event.code == ecodes.REL_WHEEL_HI_RES or event.code == ecodes.REL_HWHEEL_HI_RES:
+            should_forward = False
+        elif event.type == ecodes.EV_REL: # mouse movement or mouse wheel
             for swipe_button in mouse.swipe_buttons:
                 if swipe_button.pressed:
                     if swipe_button.freeze:
@@ -68,36 +77,38 @@ async def task_handle_mouse_events(mouse):
                     if event.code == ecodes.REL_X:
                         swipe_button.deltaX += event.value
 
-                        if swipe_button.scroll and abs(swipe_button.deltaX) > 5:
-                            emulate_event(ecodes.EV_REL, ecodes.REL_HWHEEL, 1 if swipe_button.deltaX > 0 else -1)
-                            swipe_button.deltaX = 0
-                    else:
+                        if abs(swipe_button.deltaX) > swipe_button.delta and not(swipe_button.moved):
+                            swipe_button.moved = True
+
+                        if swipe_button.scroll and swipe_button.moved:
+                            emulate_event(ecodes.EV_REL, ecodes.REL_HWHEEL, 1 if event.value > 0 else -1)
+                    elif event.code == ecodes.REL_Y:
                         swipe_button.deltaY += event.value
 
-                        if swipe_button.scroll and abs(swipe_button.deltaY) > 5:
-                            emulate_event(ecodes.EV_REL, ecodes.REL_WHEEL, -1 if swipe_button.deltaY > 0 else 1)
-                            swipe_button.deltaY = 0
+                        if abs(swipe_button.deltaY) > swipe_button.delta and not(swipe_button.moved):
+                            swipe_button.moved = True
+
+                        if swipe_button.scroll and swipe_button.moved:
+                            emulate_event(ecodes.EV_REL, ecodes.REL_WHEEL, -1 if event.value > 0 else 1)
         elif event.type == ecodes.EV_KEY:
             for swipe_button in mouse.swipe_buttons:
                 if event.code == ecodes.ecodes[swipe_button.button]:
                     should_forward = False
                     swipe_button.pressed = event.value
 
-                    absDeltaX = abs(swipe_button.deltaX)
-                    absDeltaY = abs(swipe_button.deltaY)
-
                     if not(swipe_button.pressed):
-                        if absDeltaX < 5 and absDeltaY < 5:
+                        if not(swipe_button.moved):
                             emulate_key_press(swipe_button.click)
                         elif not(swipe_button.scroll):
-                            if absDeltaX > absDeltaY:
+                            if abs(swipe_button.deltaX) > abs(swipe_button.deltaY):
                                 emulate_key_press(swipe_button.swipe_right if swipe_button.deltaX > 0 else swipe_button.swipe_left)
                             else:
                                 emulate_key_press(swipe_button.swipe_down if swipe_button.deltaY > 0 else swipe_button.swipe_up)
-                            
+
                         swipe_button.deltaX = 0
                         swipe_button.deltaY = 0
-            
+                        swipe_button.moved = False
+
         if should_forward:
             emulate_event(event.type, event.code, event.value)
 
